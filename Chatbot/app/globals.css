@@ -1,0 +1,396 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Markdown styles for chat messages */
+.prose {
+  max-width: 100%;
+}
+
+.prose p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose p:first-child {
+  margin-top: 0;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.prose ul, .prose ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}
+
+.prose li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.prose code {
+  background-color: rgba(255, 145, 77, 0.2);
+  padding: 0.125em 0.375em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: 'Geist Mono', monospace;
+}
+
+.prose pre {
+  background-color: rgba(12, 11, 24, 0.5);
+  padding: 1em;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.prose a {
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.prose blockquote {
+  border-left: 3px solid rgba(152, 167, 221, 0.5);
+  padding-left: 1em;
+  margin-left: 0;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+  font-style: italic;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose th, .prose td {
+  border: 1px solid rgba(152, 167, 221, 0.3);
+  padding: 0.5em;
+  text-align: left;
+}
+
+.prose th {
+  background-color: rgba(40, 37, 69, 0.5);
+  font-weight: 600;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid rgba(152, 167, 221, 0.3);
+  margin: 1em 0;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Lyra Space Theme Colors */
+  --space-purple: #0C0B18;
+  --dark-purple-gray: #282545;
+  --retro-orange: #FF914D;
+  --peach-light: #FFD8A9;
+  --pastel-blue: #98A7DD;
+  
+  --background: #0C0B18;
+  --foreground: #FFD8A9;
+  --card: #282545;
+  --card-foreground: #FFD8A9;
+  --popover: #282545;
+  --popover-foreground: #FFD8A9;
+  --primary: #FF914D;
+  --primary-foreground: #0C0B18;
+  --secondary: #98A7DD;
+  --secondary-foreground: #0C0B18;
+  --muted: #282545;
+  --muted-foreground: #98A7DD;
+  --accent: #FF914D;
+  --accent-foreground: #0C0B18;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: #282545;
+  --input: #282545;
+  --ring: #FF914D;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Space Animations */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 145, 77, 0.4), 0 0 40px rgba(255, 145, 77, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 145, 77, 0.6), 0 0 60px rgba(255, 145, 77, 0.3);
+  }
+}
+
+@keyframes fade-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes black-hole-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+  }
+}
+
+/* Adding liquid-glass shimmer animation */
+@keyframes liquid-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Added audio wave animation for call mode */
+@keyframes audioWave {
+  0%, 100% {
+    height: 8px;
+  }
+  50% {
+    height: 32px;
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.fade-blur-in {
+  animation: fade-blur-in 0.8s ease-out forwards;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 216, 169, 0.6);
+  border-radius: 50%;
+  animation: float-up linear infinite;
+}
+
+.black-hole-pulse {
+  animation: black-hole-pulse 8s ease-in-out infinite;
+}
+
+/* Parallax container */
+.parallax-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.parallax-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  will-change: transform;
+  /* Removed all filters and overlays - showing image exactly as uploaded */
+}
+
+/* Space warp hover effect */
+.space-warp {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.space-warp:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 145, 77, 0.5));
+}
+
+/* 3D Tilt for cards */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.tilt-card:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(2deg) translateZ(10px);
+}
+
+/* Adding liquid glass glassmorphism effect */
+.liquid-glass {
+  background: linear-gradient(
+    135deg,
+    rgba(40, 37, 69, 0.7),
+    rgba(40, 37, 69, 0.5)
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(152, 167, 221, 0.2);
+  box-shadow: 
+    0 8px 32px 0 rgba(12, 11, 24, 0.37),
+    inset 0 1px 0 0 rgba(255, 216, 169, 0.1),
+    0 0 40px rgba(255, 145, 77, 0.05);
+  /* Removed 3D transform effects to make chatbot appear flat */
+  /* Removed default move cursor - only shows during drag */
+  user-select: none;
+  cursor: default;
+}
+
+/* Updated draggable header to show cursor move */
+.draggable-header {
+  cursor: move;
+  user-select: none;
+}
+
+.draggable-header:active {
+  cursor: grabbing;
+}
+
+/* Updated liquid-glass to remove border hover effect */
+.liquid-glass {
+  background: linear-gradient(
+    135deg,
+    rgba(40, 37, 69, 0.7),
+    rgba(40, 37, 69, 0.5)
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(152, 167, 221, 0.2);
+  box-shadow: 
+    0 8px 32px 0 rgba(12, 11, 24, 0.37),
+    inset 0 1px 0 0 rgba(255, 216, 169, 0.1),
+    0 0 40px rgba(255, 145, 77, 0.05);
+  user-select: none;
+  cursor: default;
+}
+
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 216, 169, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.liquid-glass:hover::before {
+  left: 100%;
+}
+
+/* Added class to prevent dragging on interactive elements */
+.no-drag {
+  cursor: default;
+}
+
+.no-drag * {
+  cursor: default;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0C0B18;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #282545;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF914D;
+}
