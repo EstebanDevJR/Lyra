@@ -59,7 +59,17 @@ app = FastAPI(
 
 # CORS middleware - Configuración para desarrollo y producción
 # Detectar si estamos en Render (producción)
-is_render = os.getenv("RENDER") == "true"
+# Render automáticamente establece estas variables de entorno:
+# - RENDER_EXTERNAL_HOSTNAME
+# - RENDER_SERVICE_ID
+# También verificamos si RENDER está configurado manualmente (case-insensitive)
+render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+render_service_id = os.getenv("RENDER_SERVICE_ID")
+render_env = os.getenv("RENDER", "").lower() == "true"
+is_render = bool(render_external_hostname or render_service_id or render_env)
+
+# Log para debugging
+logger.info(f"CORS Config - is_render: {is_render}, RENDER_EXTERNAL_HOSTNAME: {render_external_hostname}, RENDER_SERVICE_ID: {render_service_id}")
 
 # Obtener orígenes permitidos de variables de entorno
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
@@ -67,6 +77,7 @@ allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
 if allowed_origins_env:
     # Si se especifica ALLOWED_ORIGINS, usar esos valores
     allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+    logger.info(f"CORS Config - Using ALLOWED_ORIGINS from env: {allowed_origins}")
 else:
     # Orígenes por defecto para desarrollo
     allowed_origins = [
@@ -77,6 +88,9 @@ else:
     # Esto permite que funcione con cualquier deployment de Vercel
     if is_render:
         allowed_origins = ["*"]
+        logger.info("CORS Config - Render detected, allowing all origins (*)")
+    else:
+        logger.info(f"CORS Config - Development mode, allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
