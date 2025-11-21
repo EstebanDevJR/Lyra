@@ -228,7 +228,7 @@ export default function ThreeScene({ onStartConversation }: ThreeSceneProps) {
     const initExperience = async () => {
       try {
         // Importar Experience dinámicamente
-        const ExperienceModule = await import('@/lib/experience/Experience')
+        const ExperienceModule = await import('@/lib/experience/Experience.js')
         const Experience = ExperienceModule.default
         
         // Verificar si ya existe una instancia y si la cámara está en zoom
