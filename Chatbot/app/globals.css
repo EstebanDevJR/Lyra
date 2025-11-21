@@ -394,3 +394,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #FF914D;
 }
+
+/* Animated gradient background for text */
+@keyframes animate-gradient {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% auto;
+  animation: animate-gradient 3s ease infinite;
+}

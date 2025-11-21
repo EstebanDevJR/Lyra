@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, List
 import requests
 import json
 from datetime import datetime
+import os
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -31,6 +32,40 @@ class APIIntegrationAgent:
         self.error_handler = get_error_handler()
         self.llm = self.resource_manager.get_llm(model="gpt-4o-mini", temperature=0.3)
     
+    def extract_query_parameters(self, query: str, service: str) -> Dict[str, Any]:
+        """
+        Extract parameters from natural language query using LLM.
+        """
+        try:
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            system_prompt = f"""You are an assistant that extracts parameters for API calls.
+            Current date: {today}
+            
+            Extract parameters for service: {service}
+            
+            For 'nasa_neo': extract 'start_date' and 'end_date' (YYYY-MM-DD). Default to today if not specified.
+            For 'nasa_apod': extract 'date' (YYYY-MM-DD). Default to today if not specified.
+            For 'wikipedia': extract 'topic' (search term) and 'lang' (es/en).
+            For 'ads': extract 'query' (search term) and 'max_results' (int).
+            
+            Return ONLY a JSON object with the extracted parameters.
+            """
+            
+            response = self.llm.invoke([
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": query}
+            ])
+            
+            content = response.content.strip()
+            if content.startswith("```json"):
+                content = content.replace("```json", "").replace("```", "")
+            
+            return json.loads(content)
+        except Exception as e:
+            print(f"Error extracting parameters: {e}")
+            return {}
+
     def query_nasa_apod(self, date: Optional[str] = None) -> Dict[str, Any]:
         """
         Query NASA Astronomy Picture of the Day.
@@ -43,7 +78,8 @@ class APIIntegrationAgent:
         """
         try:
             url = "https://api.nasa.gov/planetary/apod"
-            params = {"api_key": "DEMO_KEY"}
+            api_key = os.getenv("NASA_API_KEY", "DEMO_KEY")
+            params = {"api_key": api_key}
             if date:
                 params["date"] = date
             
@@ -76,7 +112,7 @@ class APIIntegrationAgent:
         try:
             url = "https://api.nasa.gov/neo/rest/v1/feed"
             params = {
-                "api_key": "DEMO_KEY",
+                "api_key": os.getenv("NASA_API_KEY", "DEMO_KEY"),
                 "start_date": start_date,
                 "end_date": end_date
             }
@@ -144,16 +180,13 @@ class APIIntegrationAgent:
             # This is a simplified version
             url = "https://api.adsabs.harvard.edu/v1/search/query"
             headers = {
-                "Authorization": "Bearer DEMO_TOKEN"  # Replace with actual token
+                "Authorization": f"Bearer {os.getenv('ADS_HARVARD_KEY')}"  # Replace with actual token
             }
             params = {
                 "q": query,
                 "rows": max_results,
                 "fl": "title,author,abstract,year"
             }
-            
-            # For demo purposes, return structured response
-            # In production, use actual ADS API
             return {
                 "status": "info",
                 "message": f"ADS search for '{query}' would return up to {max_results} results. Full ADS API integration requires authentication.",
@@ -204,10 +237,26 @@ def api_integration_agent_tool(service: str, query: str, **kwargs) -> str:
             return agent.format_api_result("NASA_APOD", result)
         
         elif service.lower() == "nasa_neo":
-            # Parse dates from query or kwargs
-            dates = query.split(",") if "," in query else [query]
-            start_date = kwargs.get("start_date") or dates[0] if dates else datetime.now().strftime("%Y-%m-%d")
-            end_date = kwargs.get("end_date") or dates[1] if len(dates) > 1 else start_date
+            # Try to parse dates from query if it looks like a date string
+            is_date_format = False
+            try:
+                if query and len(query.split(",")) <= 2:
+                    parts = query.split(",")
+                    datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+                    is_date_format = True
+            except ValueError:
+                pass
+
+            if is_date_format:
+                dates = query.split(",")
+                start_date = kwargs.get("start_date") or dates[0].strip()
+                end_date = kwargs.get("end_date") or (dates[1].strip() if len(dates) > 1 else start_date)
+            else:
+                # Use LLM to extract dates from natural language query
+                params = agent.extract_query_parameters(query, "nasa_neo")
+                start_date = params.get("start_date", datetime.now().strftime("%Y-%m-%d"))
+                end_date = params.get("end_date", start_date)
+
             result = agent.query_nasa_neo(start_date, end_date)
             return agent.format_api_result("NASA_NEO", result)
         

@@ -131,10 +131,130 @@ python src/main.py --port 8000
 
 La API estará disponible en `http://localhost:8000`
 
-### Configuración Completa
+### Ejecutar con Uvicorn (Recomendado)
 
-Para una guía detallada de configuración paso a paso, consulta [SETUP.md](SETUP.md)
+```bash
+uvicorn src.main:app --reload --port 8000
+```
 
-### Frontend
+### Verificar Instalación
 
-Para configurar y ejecutar el frontend, consulta `../Chatbot/SETUP.md`
+```bash
+# Verificar que el servidor responde
+curl http://localhost:8000/health
+```
+
+---
+
+## 🔌 API Endpoints
+
+### Consultas
+
+- **POST** `/api/query` - Procesar consulta de texto
+  ```json
+  {
+    "query": "¿Qué es un agujero negro?",
+    "session_id": "opcional"
+  }
+  ```
+
+- **POST** `/api/upload` - Subir y procesar documentos
+  ```bash
+  curl -X POST "http://localhost:8000/api/upload" \
+    -F "file=@documento.pdf" \
+    -F "query=Analiza este documento"
+  ```
+
+### Realtime API
+
+- **POST** `/api/realtime/connect` - Conectar a OpenAI Realtime API
+- **WebSocket** `/api/realtime/ws` - Conexión WebSocket para streaming
+
+### Utilidades
+
+- **GET** `/health` - Estado del servidor
+- **GET** `/docs` - Documentación interactiva (Swagger UI)
+
+---
+
+## 🧠 Arquitectura LangGraph
+
+El sistema utiliza **LangGraph** para orquestar el flujo de trabajo multiagente:
+
+### Componentes Principales
+
+- **SupervisorGraph**: Grafo principal que coordina los agentes
+- **AgentState**: Estado tipado que se mantiene a través del flujo
+- **ToolFactory**: Factory para crear y gestionar herramientas
+- **ContextManager**: Gestión de contexto compartido
+- **ResourceManager**: Gestión de recursos (VectorStore, LLMs)
+
+**Documentación técnica**: Ver [docs/README.md](docs/README.md)
+
+---
+
+## 📚 Documentación Adicional
+
+**Toda la documentación técnica está centralizada en el directorio `docs/` de la raíz del proyecto:**
+
+- **[docs/README.md](../docs/README.md)** - Índice completo de documentación
+- **[docs/backend/langgraph.md](../docs/backend/langgraph.md)** - Implementación LangGraph
+- **[docs/backend/agents.md](../docs/backend/agents.md)** - Documentación detallada de agentes
+- **[docs/backend/connection.md](../docs/backend/connection.md)** - Conexión Frontend-Backend
+- **[docs/backend/tools.md](../docs/backend/tools.md)** - Verificación de herramientas
+- **[docs/backend/web-search.md](../docs/backend/web-search.md)** - Búsqueda web con DuckDuckGo
+
+---
+
+## 🔧 Desarrollo
+
+### Estructura de Código
+
+```
+src/
+├── agents/              # Agentes especializados
+│   ├── graph/          # Implementación LangGraph
+│   │   ├── supervisor_graph.py
+│   │   ├── state.py
+│   │   └── tool_factory.py
+│   └── *.py            # Agentes individuales
+├── core/               # Funcionalidades principales
+│   ├── embeddings.py
+│   ├── vectorstore.py
+│   └── chunking.py
+├── interface/          # API y endpoints
+│   ├── api.py
+│   └── realtime_api.py
+└── main.py            # Punto de entrada
+```
+
+### Agregar un Nuevo Agente
+
+1. Crea el archivo del agente en `src/agents/`
+2. Implementa las funciones de herramienta
+3. Registra el agente en `supervisor_graph.py`
+4. Agrega la herramienta en `tool_factory.py`
+
+---
+
+## 🐛 Troubleshooting
+
+### Error: "Pinecone index not found"
+- Verifica que `PINECONE_API_KEY` esté configurada
+- El índice se crea automáticamente en el primer uso
+
+### Error: "OpenAI API key not found"
+- Verifica que `OPENAI_API_KEY` esté en el archivo `.env`
+
+### Error: "Module not found"
+- Asegúrate de estar en el entorno virtual: `source venv/bin/activate`
+- Reinstala dependencias: `pip install -r requirements.txt`
+
+---
+
+## 📝 Notas
+
+- El sistema usa **Singleton** para recursos compartidos
+- Los embeddings usan `text-embedding-3-small` (1536 dimensiones)
+- El vector store se inicializa de forma lazy (solo cuando se necesita)
+- Compatible con Python 3.8+

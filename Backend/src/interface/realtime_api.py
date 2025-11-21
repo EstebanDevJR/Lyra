@@ -120,11 +120,11 @@ IMPORTANT: Use the current date provided above as your reference. When the user 
                     },
                     "turn_detection": {
                         "type": "server_vad",
-                        "threshold": 0.5,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 500
+                        "threshold": 0.6,  # Aumentado para reducir falsos positivos con ruido
+                        "prefix_padding_ms": 500,  # Aumentado para capturar mejor el inicio de la frase
+                        "silence_duration_ms": 800  # Aumentado para no cortar pausas naturales al hablar
                     },
-                    "temperature": 0.8,
+                    "temperature": 0.7,  # Reducido ligeramente para respuestas más precisas
                     "max_response_output_tokens": 4096
                 }
             }
@@ -331,12 +331,23 @@ async def handle_realtime_connection(websocket: WebSocket):
             except Exception as e:
                 logger.error(f"Error forwarding from client to OpenAI: {e}", exc_info=True)
         
-        # Run both forwarding tasks concurrently
-        await asyncio.gather(
-            forward_openai_to_client(),
-            forward_client_to_openai(),
-            return_exceptions=True
+        # Create tasks for bidirectional forwarding
+        forward_to_client_task = asyncio.create_task(forward_openai_to_client())
+        forward_to_openai_task = asyncio.create_task(forward_client_to_openai())
+        
+        # Wait for either task to complete (or error)
+        done, pending = await asyncio.wait(
+            [forward_to_client_task, forward_to_openai_task],
+            return_when=asyncio.FIRST_COMPLETED
         )
+        
+        # Cancel pending tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         
     except Exception as e:
         logger.error(f"Error in realtime connection: {e}", exc_info=True)

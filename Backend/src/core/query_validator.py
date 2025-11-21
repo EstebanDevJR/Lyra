@@ -7,7 +7,7 @@ related to astrophysics, space, nature, and related scientific topics.
 
 import re
 import logging
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict
 from langchain_openai import ChatOpenAI
 from config import OPENAI_API_KEY
 
@@ -34,6 +34,10 @@ ALLOWED_TOPICS = {
     # Space agencies and organizations
     'nasa', 'esa', 'cern', 'lhc', 'telescopio', 'telescopios', 'sonda', 'sondas',
     'satélite', 'satélites', 'misión', 'misiones', 'rover', 'mars', 'marte',
+    'spacex', 'starship', 'falcon', 'cohete', 'cohetes', 'nave', 'naves',
+    'lanzamiento', 'lanzamientos', 'vuelo', 'vuelos', 'espacial', 'espaciales',
+    'reciente', 'recientes', 'última', 'último', 'últimas', 'últimos',
+    'actual', 'actuales', 'hasta', 'ahora', 'hoy', 'actualmente',
     # Document and analysis terms
     'documento', 'documentos', 'archivo', 'archivos', 'texto', 'textos',
     'resume', 'resumen', 'resumir', 'analiza', 'analizar', 'análisis',
@@ -111,7 +115,7 @@ INJECTION_PATTERNS = [
 ]
 
 
-def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = False) -> Tuple[bool, Optional[str]]:
+def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = False, chat_history: Optional[List[Dict]] = None) -> Tuple[bool, Optional[str]]:
     """
     Validate if a query is within the allowed topics (astrophysics, space, nature).
     
@@ -119,6 +123,7 @@ def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = Fals
         query: User query string
         use_llm: If True, use LLM for semantic validation (more accurate but slower)
         has_file: If True, user has uploaded a file, so be more permissive with document-related queries
+        chat_history: Optional list of previous messages for context-aware validation
         
     Returns:
         Tuple of (is_valid, rejection_reason)
@@ -126,6 +131,42 @@ def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = Fals
         - rejection_reason: None if valid, otherwise reason for rejection
     """
     query_lower = query.lower().strip()
+    
+    # If we have chat history, check if recent messages contain scientific topics
+    # This helps validate follow-up questions that reference previous context
+    has_scientific_context = False
+    if chat_history:
+        # Check last 3 messages for scientific keywords
+        recent_messages = chat_history[-3:] if len(chat_history) > 3 else chat_history
+        recent_text = ' '.join([msg.get('content', '') for msg in recent_messages if isinstance(msg, dict)])
+        recent_text += ' '.join([msg.content for msg in recent_messages if hasattr(msg, 'content')])
+        recent_text_lower = recent_text.lower()
+        
+        # Check if recent conversation mentions scientific topics
+        scientific_context_keywords = [
+            'nasa', 'spacex', 'starship', 'kepler', 'exoplaneta', 'planeta', 'estrella',
+            'galaxia', 'espacio', 'astronomía', 'astrofísica', 'misión', 'misiones',
+            'sonda', 'satélite', 'telescopio', 'cohete', 'nave', 'velocidad', 'distancia',
+            'descubrimiento', 'investigación', 'ciencia', 'científico'
+        ]
+        has_scientific_context = any(keyword in recent_text_lower for keyword in scientific_context_keywords)
+        
+        # If query is a follow-up (short, uses pronouns or references), and context is scientific, allow it
+        if has_scientific_context and len(query.split()) <= 8:
+            # Check for follow-up indicators
+            follow_up_indicators = [
+                'su', 'sus', 'suya', 'suyas', 'él', 'ella', 'ellos', 'ellas',
+                'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas',
+                'cuál', 'cuáles', 'qué', 'cómo', 'cuándo', 'dónde', 'por qué',
+                'más', 'menos', 'también', 'además', 'reciente', 'recientes',
+                'última', 'último', 'últimas', 'últimos', 'actual', 'actuales',
+                'habla', 'hablar', 'dime', 'cuéntame', 'explica', 'describe',
+                'which', 'what', 'how', 'when', 'where', 'why', 'tell', 'explain',
+                'describe', 'more', 'about', 'recent', 'latest', 'current'
+            ]
+            if any(indicator in query_lower for indicator in follow_up_indicators):
+                logger.info(f"Allowing follow-up query with scientific context: {query[:50]}")
+                return True, None
     
     # Check for prompt injection patterns
     for pattern in INJECTION_PATTERNS:
@@ -161,11 +202,18 @@ def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = Fals
         scientific_keywords = ['nasa', 'cern', 'esa', 'lhc', 'telescopio', 'sonda', 
                              'satélite', 'misión', 'rover', 'mars', 'marte', 'espacio',
                              'astronomía', 'astrofísica', 'estrella', 'planeta', 'galaxia',
-                             'descubrimiento', 'descubrimientos', 'investigación']
+                             'descubrimiento', 'descubrimientos', 'investigación', 'spacex',
+                             'starship', 'falcon', 'cohete', 'nave', 'lanzamiento', 'vuelo']
         if any(keyword in query_lower for keyword in scientific_keywords):
             return True, None
         # Allow very short queries (likely follow-ups or greetings)
-        if len(query_words) <= 3:
+        # Especially if they're questions (contain question words)
+        question_words = ['qué', 'cuál', 'cuáles', 'cómo', 'cuándo', 'dónde', 'por qué',
+                         'what', 'which', 'how', 'when', 'where', 'why', 'who']
+        if len(query_words) <= 3 and any(qw in query_lower for qw in question_words):
+            return True, None
+        # Allow very short queries (likely follow-ups or greetings)
+        if len(query_words) <= 2:
             return True, None
     
     # If query has multiple blocked terms and no scientific terms, reject
@@ -176,18 +224,20 @@ def validate_query_topic(query: str, use_llm: bool = True, has_file: bool = Fals
     # Check for allowed topics
     # If no allowed topic found and query is substantial, use LLM for semantic check
     if not has_allowed_topic and use_llm and len(query_words) > 3:
-        return _validate_with_llm(query)
+        # Pass chat history context to LLM validator
+        return _validate_with_llm(query, chat_history)
     
     # Default: allow query if we got here (be permissive)
     return True, None
 
 
-def _validate_with_llm(query: str) -> Tuple[bool, Optional[str]]:
+def _validate_with_llm(query: str, chat_history: Optional[List[Dict]] = None) -> Tuple[bool, Optional[str]]:
     """
     Use LLM to semantically validate if query is about allowed topics.
     
     Args:
         query: User query string
+        chat_history: Optional list of previous messages for context
         
     Returns:
         Tuple of (is_valid, rejection_reason)
@@ -199,24 +249,56 @@ def _validate_with_llm(query: str) -> Tuple[bool, Optional[str]]:
             openai_api_key=OPENAI_API_KEY
         )
         
+        # Build context from chat history if available
+        context_section = ""
+        if chat_history:
+            recent_messages = chat_history[-3:] if len(chat_history) > 3 else chat_history
+            context_texts = []
+            for msg in recent_messages:
+                if isinstance(msg, dict):
+                    role = msg.get('role', '')
+                    content = msg.get('content', '')
+                elif hasattr(msg, 'role') and hasattr(msg, 'content'):
+                    role = msg.role
+                    content = msg.content
+                else:
+                    continue
+                if role in ['user', 'assistant']:
+                    context_texts.append(f"{role}: {content[:200]}")
+            
+            if context_texts:
+                context_section = f"""
+
+CONTEXTO DE LA CONVERSACIÓN RECIENTE:
+{chr(10).join(context_texts)}
+
+IMPORTANTE: Si la consulta actual es un seguimiento o pregunta sobre algo mencionado en el contexto anterior (por ejemplo, "cuál fue su misión más reciente" refiriéndose a una nave espacial mencionada antes), y el contexto es científico, responde "SI".
+"""
+        
         validation_prompt = f"""Eres un validador de consultas para un asistente de astrofísica.
 
 Tu tarea es determinar si una consulta del usuario está relacionada con los temas permitidos:
 - Astrofísica y astronomía (galaxias, estrellas, planetas, agujeros negros, NGC, objetos astronómicos, etc.)
 - Espacio y fenómenos espaciales (tormentas solares, auroras, etc.)
+- Tecnología espacial (naves espaciales, cohetes, misiones espaciales, SpaceX, NASA, etc.)
 - Naturaleza y ciencias de la Tierra (geología, clima, ecología, etc.)
 - Física, química, biología y otras ciencias naturales
 - Conceptos científicos generales relacionados con estos temas (masa, distancia, patrón, atenuación, intervalo, etc.)
 - Preguntas técnicas sobre objetos astronómicos, mediciones científicas, análisis de datos
 
-IMPORTANTE: Sé PERMISIVO. Si la consulta menciona términos científicos, objetos astronómicos (como NGC), conceptos físicos, o parece ser una pregunta científica, responde "SI".
+IMPORTANTE: Sé MUY PERMISIVO. Si la consulta:
+- Menciona términos científicos, objetos astronómicos, conceptos físicos
+- Parece ser una pregunta científica o técnica
+- Es un seguimiento de una conversación previa sobre temas científicos (incluso si la consulta en sí es corta o usa pronombres)
+- Menciona tecnología espacial, misiones, naves, cohetes, agencias espaciales
+Entonces responde "SI".
 
 Solo RECHAZA si la consulta es claramente sobre:
 - Política, gobierno, elecciones, conflictos políticos (sin contexto científico)
 - Historia no científica (biografías de políticos, eventos históricos no científicos)
 - Personas fuera del ámbito científico (políticos, figuras históricas no científicas)
 - Opiniones personales o preferencias políticas
-
+{context_section}
 Responde SOLO con "SI" si la consulta está relacionada con los temas permitidos, o "NO" si está claramente fuera de estos temas.
 
 Consulta del usuario: "{query}"

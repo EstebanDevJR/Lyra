@@ -6,9 +6,7 @@ This guide will help you set up and configure the Lyra frontend application.
 
 - Node.js 18.x or higher
 - npm, yarn, or pnpm package manager
-- Backend API running (see [Backend README](../Backend/README.md))
-
-**📚 Documentación completa**: Ver [docs/README.md](../docs/README.md) para toda la documentación del proyecto.
+- Backend API running (see `Backend/SETUP.md`)
 
 ## Step 1: Install Dependencies
 

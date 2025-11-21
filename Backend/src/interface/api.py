@@ -191,8 +191,21 @@ async def process_query_endpoint(request: QueryRequest):
         
         # Validate query topic (astrophysics, space, nature only)
         # Pass has_file=True if user has uploaded a file to be more permissive with document queries
+        # Pass chat_history for context-aware validation
         has_file = bool(request.file_path)
-        is_valid, rejection_reason = validate_query_topic(sanitized_query, use_llm=True, has_file=has_file)
+        chat_history_dict = None
+        if request.chat_history:
+            # Convert MessageHistory objects to dicts for validator
+            chat_history_dict = [
+                {"role": msg.role, "content": msg.content} 
+                for msg in request.chat_history
+            ]
+        is_valid, rejection_reason = validate_query_topic(
+            sanitized_query, 
+            use_llm=True, 
+            has_file=has_file,
+            chat_history=chat_history_dict
+        )
         
         if not is_valid:
             logger.warning(f"Query rejected: {sanitized_query[:100]}... Reason: {rejection_reason}")
@@ -526,17 +539,18 @@ def create_app():
     return app
 
 
-# Import realtime endpoint
-from interface.realtime_api import handle_realtime_connection
+# Import realtime endpoint - DISABLED TEMPORARILY
+# from interface.realtime_api import handle_realtime_connection
 
-@app.websocket("/ws/realtime")
-async def websocket_realtime(websocket: WebSocket):
-    """
-    WebSocket endpoint for OpenAI Realtime API voice conversations.
-    
-    This endpoint proxies audio and events between the frontend and OpenAI Realtime API.
-    """
-    await handle_realtime_connection(websocket)
+# @app.websocket("/ws/realtime")
+# async def websocket_realtime(websocket: WebSocket):
+#     """
+#     WebSocket endpoint for OpenAI Realtime API voice conversations.
+#     
+#     This endpoint proxies audio and events between the frontend and OpenAI Realtime API.
+#     """
+#     # await handle_realtime_connection(websocket)
+#     pass
 
 
 if __name__ == "__main__":

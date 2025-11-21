@@ -13,6 +13,9 @@ import ArchitectureSection from '@/components/landing/ArchitectureSection'
 import ShootingStars from '@/components/landing/ShootingStars'
 import Footer from '@/components/landing/Footer'
 
+import Card3D from '@/components/landing/Card3D'
+import ThreeBackground from '@/components/landing/ThreeBackground'
+
 // Dynamic import para evitar SSR de Three.js
 const ThreeScene = dynamic(() => import('@/components/three-scene'), {
   ssr: false,
@@ -47,7 +50,7 @@ export default function HomePage() {
         {/* Title and GitHub Button */}
         <h1 className="lyra-title">Lyra</h1>
         <a 
-          href="https://github.com" 
+          href="https://github.com/EstebanDevJR/Lyra.git" 
           target="_blank" 
           rel="noopener noreferrer" 
           className="github-button"
@@ -86,31 +89,33 @@ export default function HomePage() {
       <ShootingStars />
 
       {/* Information Section */}
-      <section className="info-section">
-        <div className="info-content">
+      <section className="info-section relative overflow-hidden">
+        <ThreeBackground />
+        
+        <div className="info-content relative z-10">
           {/* Hero Section */}
           <InfoHero />
 
           {/* Separated Cards */}
-          <div className="info-card fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <Card3D delay="0.2s">
             <AboutSection />
-          </div>
+          </Card3D>
 
-          <div className="info-card fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <Card3D delay="0.3s">
             <TechnologiesSection />
-          </div>
+          </Card3D>
 
-          <div className="info-card fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <Card3D delay="0.4s">
             <HowItWorksSection />
-          </div>
+          </Card3D>
 
-          <div className="info-card fade-in-up" style={{ animationDelay: '0.5s' }}>
+          <Card3D delay="0.5s">
             <ProcessSteps />
-          </div>
+          </Card3D>
 
-          <div className="info-card fade-in-up" style={{ animationDelay: '0.6s' }}>
+          <Card3D delay="0.6s">
             <ArchitectureSection />
-          </div>
+          </Card3D>
         </div>
       </section>
 

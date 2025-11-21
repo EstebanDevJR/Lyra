@@ -28,7 +28,13 @@ interface Session {
   lastUpdated: Date
 }
 
+import NewsGrid from '@/components/news/NewsGrid'
+import AstronomyImage from '@/components/astronomy/AstronomyImage'
+import ResearchPapers from '@/components/astronomy/ResearchPapers'
+import AstroAlerts from '@/components/astronomy/AstroAlerts'
+
 export default function LyraChatbot() {
+  // ... (resto del código)
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string>('')
@@ -37,7 +43,7 @@ export default function LyraChatbot() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true)
   const [isCallMode, setIsCallMode] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [callDuration, setCallDuration] = useState(0)
@@ -67,7 +73,8 @@ export default function LyraChatbot() {
   useEffect(() => {
     // Resetear scroll al montar el componente
     window.scrollTo(0, 0)
-    document.body.style.overflow = 'hidden'
+    // Permitir scroll cuando está minimizado (estado inicial)
+    document.body.style.overflow = isMinimized ? 'auto' : 'hidden'
     
     // Inicializar tamaño de ventana inmediatamente
     const updateWindowSize = () => {
@@ -105,7 +112,7 @@ export default function LyraChatbot() {
       window.removeEventListener('popstate', handlePopState)
       document.body.style.overflow = ''
     }
-  }, [])
+  }, [isMinimized])
 
   // Efecto adicional para asegurar que el tamaño se actualice después de la navegación
   useEffect(() => {
@@ -122,6 +129,14 @@ export default function LyraChatbot() {
       setTimeout(forceUpdateSize, 500)
     }
   }, [isMounted])
+
+  // Controlar overflow del body según el estado de minimizado
+  useEffect(() => {
+    document.body.style.overflow = isMinimized ? 'auto' : 'hidden'
+    return () => {
+      // No resetear aquí, se hace en el cleanup del useEffect principal
+    }
+  }, [isMinimized])
 
   useEffect(() => {
     // Load sessions from storageManager (unified storage)
@@ -433,34 +448,23 @@ export default function LyraChatbot() {
         const client = new RealtimeClient(baseUrl)
         realtimeClientRef.current = client
 
-        // Set up audio element for playback
-        if (!audioRef.current) {
-          audioRef.current = new Audio()
-          audioRef.current.autoplay = true
-        }
-
         // Connect to Realtime API
         await client.connect({
           onTranscript: (text: string, role: 'user' | 'assistant') => {
-            // Handle transcriptions (both user and assistant)
+            // Handle final transcripts only (when conversation.item.input_audio_transcription.completed)
+            // Or intermediate?
+            // The 'transcript' event in RealtimeClient is emitted for user input transcription (completed)
             logger.info('Transcript received', { text, role })
-            // Add transcriptions to messages
-            setMessages(prev => [...prev, {
-              id: `${Date.now()}-transcript-${Math.random().toString(36).substr(2, 9)}`,
-              role: role,
-              content: text,
-              timestamp: new Date()
-            }])
-          },
-          onAudio: (audioData: ArrayBuffer) => {
-            // Handle audio playback
-            if (audioRef.current) {
-              // Convert ArrayBuffer to blob and play
-              const blob = new Blob([audioData], { type: 'audio/pcm' })
-              const url = URL.createObjectURL(blob)
-              audioRef.current.src = url
+            if (role === 'user') {
+               setMessages(prev => [...prev, {
+                  id: `${Date.now()}-transcript-${Math.random().toString(36).substr(2, 9)}`,
+                  role: role,
+                  content: text,
+                  timestamp: new Date()
+                }])
             }
           },
+          // 'onAudio' is not used as RealtimeClient handles playback internally
           onError: (error: Error) => {
             logger.error('Realtime API error', error)
             setCallState('error')
@@ -470,7 +474,6 @@ export default function LyraChatbot() {
               content: `Error en modo llamada: ${error.message}`,
               timestamp: new Date()
             }])
-            // Don't automatically close call mode on error, let user decide
           },
           onClose: () => {
             logger.info('Realtime connection closed')
@@ -483,8 +486,33 @@ export default function LyraChatbot() {
           },
           onAudioLevel: (level: number) => {
             setAudioLevel(level)
+          },
+          onMessage: (text: string) => {
+             // Handle partial assistant response (delta)
+             setMessages(prev => {
+              const newMessages = [...prev]
+              const lastMsg = newMessages[newMessages.length - 1]
+              
+              if (lastMsg && lastMsg.id === 'realtime-temp') {
+                 lastMsg.content += text
+              } else if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.id) {
+                 lastMsg.content += text
+                 lastMsg.id = 'realtime-temp'
+              } else {
+                newMessages.push({
+                  id: 'realtime-temp',
+                  role: 'assistant',
+                  content: text,
+                  timestamp: new Date()
+                })
+              }
+              return newMessages
+            })
           }
         })
+        
+        // Remove manual client.on listeners since they are not supported
+        // and we are using callbacks in connect()
 
         // Start audio capture
         await client.startAudio()
@@ -664,6 +692,7 @@ export default function LyraChatbot() {
 
       <div className="particles-container fixed inset-0 pointer-events-none z-10" />
 
+      {/* Floating Chat Button when minimized */}
       {isMinimized && (
         <div className="fixed bottom-6 right-6 z-50 fade-blur-in">
           <Button
@@ -1050,6 +1079,100 @@ export default function LyraChatbot() {
             >
               <div className="absolute bottom-2 right-2 w-4 h-4 border-r-2 border-b-2 border-[#98A7DD]/50 hover:border-[#FF914D] transition-colors" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Astronomy Data Dashboard - Visible when chatbot is minimized */}
+      {isMinimized && (
+        <div className="fixed inset-0 z-20 overflow-y-auto">
+          <div className="min-h-screen w-full bg-gradient-to-b from-[#0C0B18] via-[#1a1830] to-[#0C0B18]">
+            
+            {/* Hero Section */}
+            <div className="relative py-16 px-6 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-[#FF914D]/5 via-transparent to-transparent" />
+              <div className="max-w-7xl mx-auto text-center space-y-4 relative z-10 fade-blur-in">
+                <h1 className="text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF914D] via-[#FFD8A9] to-[#FF914D] animate-gradient">
+                  Space Intelligence Hub
+                </h1>
+                <p className="text-xl text-[#98A7DD] max-w-3xl mx-auto leading-relaxed">
+                  Real-time astronomical data, breaking space news, and cutting-edge research — all in one place
+                </p>
+              </div>
+            </div>
+
+            {/* Alerts Banner - Full Width */}
+            <div className="w-full px-6 mb-12 fade-blur-in" style={{ animationDelay: '0.1s' }}>
+              <div className="max-w-7xl mx-auto">
+                <AstroAlerts />
+              </div>
+            </div>
+
+            {/* News Section - Dedicated Full-Width Area */}
+            <div className="w-full bg-[#0C0B18]/50 backdrop-blur-sm border-y border-[#98A7DD]/10 py-16 px-6 fade-blur-in" style={{ animationDelay: '0.2s' }}>
+              <div className="max-w-7xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF914D] to-[#FFD8A9]">
+                      🌌 Latest Space News
+                    </h2>
+                    <p className="text-[#98A7DD] mt-2">Breaking stories from across the cosmos</p>
+                  </div>
+                </div>
+                <NewsGrid />
+              </div>
+            </div>
+
+            {/* Astronomical Data Section - Two Column Layout */}
+            <div className="w-full py-16 px-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-12 fade-blur-in" style={{ animationDelay: '0.3s' }}>
+                  <h2 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#98A7DD] to-[#FFD8A9]">
+                    🔭 Scientific Data & Research
+                  </h2>
+                  <p className="text-[#98A7DD] mt-2">Today's discoveries and observations</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  {/* Astronomy Image of the Day */}
+                  <div className="space-y-6 fade-blur-in" style={{ animationDelay: '0.4s' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-8 bg-gradient-to-b from-[#FF914D] to-[#FFD8A9] rounded-full" />
+                      <h3 className="text-2xl font-bold text-[#FFD8A9]">Image of the Day</h3>
+                    </div>
+                    <AstronomyImage />
+                  </div>
+
+                  {/* Research Papers */}
+                  <div className="space-y-6 fade-blur-in" style={{ animationDelay: '0.5s' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-8 bg-gradient-to-b from-[#98A7DD] to-[#FFD8A9] rounded-full" />
+                      <h3 className="text-2xl font-bold text-[#FFD8A9]">Recent Publications</h3>
+                    </div>
+                    <ResearchPapers />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Footer */}
+            <div className="w-full bg-gradient-to-t from-[#0C0B18] via-[#1a1830]/50 to-transparent py-20 px-6 fade-blur-in" style={{ animationDelay: '0.6s' }}>
+              <div className="max-w-4xl mx-auto text-center space-y-6">
+                <h3 className="text-3xl font-bold text-[#FFD8A9]">
+                  Want to know more?
+                </h3>
+                <p className="text-lg text-[#98A7DD]">
+                  Ask Lyra anything about these topics and get detailed, AI-powered explanations
+                </p>
+                <Button
+                  onClick={() => setIsMinimized(false)}
+                  className="px-10 py-7 text-xl bg-gradient-to-r from-[#FF914D] to-[#FFD8A9] hover:from-[#FF914D]/90 hover:to-[#FFD8A9]/90 text-[#0C0B18] font-bold space-warp glow-pulse shadow-2xl"
+                >
+                  💬 Open Chat with Lyra
+                </Button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
