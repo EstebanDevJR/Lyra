@@ -57,14 +57,34 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - Restrictive for production
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+# CORS middleware - Configuración para desarrollo y producción
+# Detectar si estamos en Render (producción)
+is_render = os.getenv("RENDER") == "true"
+
+# Obtener orígenes permitidos de variables de entorno
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+
+if allowed_origins_env:
+    # Si se especifica ALLOWED_ORIGINS, usar esos valores
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+else:
+    # Orígenes por defecto para desarrollo
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]
+    # En Render (producción), permitir todos los orígenes si no se especifica
+    # Esto permite que funcione con cualquier deployment de Vercel
+    if is_render:
+        allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=True if allowed_origins != ["*"] else False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Add custom middleware
