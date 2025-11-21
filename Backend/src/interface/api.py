@@ -77,7 +77,12 @@ allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
 if allowed_origins_env:
     # Si se especifica ALLOWED_ORIGINS, usar esos valores
     allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
-    logger.info(f"CORS Config - Using ALLOWED_ORIGINS from env: {allowed_origins}")
+    # Si estamos en Render y solo hay localhost, permitir todos los orígenes
+    if is_render and all("localhost" in origin for origin in allowed_origins):
+        logger.info(f"CORS Config - Render detected but ALLOWED_ORIGINS only has localhost. Overriding to allow all origins (*)")
+        allowed_origins = ["*"]
+    else:
+        logger.info(f"CORS Config - Using ALLOWED_ORIGINS from env: {allowed_origins}")
 else:
     # Orígenes por defecto para desarrollo
     allowed_origins = [
@@ -96,9 +101,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True if allowed_origins != ["*"] else False,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Add custom middleware
